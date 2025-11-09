@@ -118,7 +118,8 @@ fun ModeSelectionScreen() {
                                     result.onSuccess { apiResponse ->
                                         Toast.makeText(context, apiResponse.message, Toast.LENGTH_LONG).show()
                                     }.onFailure { exception ->
-                                        Toast.makeText(context, exception.message, Toast.LENGTH_LONG).show()
+                                        val errorMessage = exception.message ?: "An unknown error occurred. Please check the server address and your connection."
+                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                                     }
                                 }
                             }
@@ -133,9 +134,9 @@ fun ModeSelectionScreen() {
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
             ) {
-                val buttonText = when {
-                    mode == "cloud" && isRegister -> R.string.register_button
-                    mode == "cloud" && !isRegister -> R.string.login_button
+                val buttonText = when (mode) {
+                    "cloud" if isRegister -> R.string.register_button
+                    "cloud" if true -> R.string.login_button
                     else -> R.string.continue_button
                 }
                 Text(stringResource(buttonText))
