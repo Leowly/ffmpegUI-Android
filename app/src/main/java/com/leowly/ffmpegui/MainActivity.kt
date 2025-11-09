@@ -1,12 +1,10 @@
 package com.leowly.ffmpegui
 
-import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import com.leowly.ffmpegui.ui.screens.ModeSelectionScreen
 import com.leowly.ffmpegui.ui.theme.FfmpegUITheme
 
 class MainActivity : ComponentActivity() {
@@ -14,24 +12,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             FfmpegUITheme {
-                ModeSelectionScreen()
+                AppNavigation()
             }
         }
     }
 }
 
-@Preview(name = "Light Mode", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_NO)
+@Preview(showBackground = true)
 @Composable
-fun AppPreview() {
+fun DefaultPreview() {
     FfmpegUITheme {
-        ModeSelectionScreen()
-    }
-}
-
-@Preview(name = "Dark Mode", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Composable
-fun AppDarkPreview() {
-    FfmpegUITheme {
-        ModeSelectionScreen()
+        AppNavigation()
     }
 }

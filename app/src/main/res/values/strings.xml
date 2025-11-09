@@ -11,4 +11,10 @@
     <string name="login_button">登录</string>
     <string name="local_mode">本地模式</string>
     <string name="cloud_mode">云端模式</string>
+
+    <!-- Bottom Navigation Bar Titles -->
+    <string name="bottom_nav_file_list">文件列表</string>
+    <string name="bottom_nav_file_details">文件详情</string>
+    <string name="bottom_nav_file_processing">文件处理</string>
+    <string name="bottom_nav_settings">设置</string>
 </resources>

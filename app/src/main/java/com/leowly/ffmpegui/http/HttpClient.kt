@@ -69,10 +69,14 @@ object HttpClient {
                 }
 
             } catch (networkError: IOException) {
-                lastException = Exception("Request to $finalUrl failed: ${networkError.message}", networkError)
+                lastException = if (networkError.message?.contains("getaddrinfo failed") == true || networkError.message?.contains("EAI_NODATA") == true) {
+                    Exception("The server address could not be found. Please ensure it is correct.", networkError)
+                } else {
+                    Exception("A network error occurred while trying to connect to $finalUrl. Please check your connection.", networkError)
+                }
                 // Continue to the next URL
             } catch (e: Exception) {
-                lastException = e
+                lastException = Exception("An unexpected error occurred: ${e.message}", e)
                 break // Break on other errors
             }
         }
@@ -128,10 +132,14 @@ object HttpClient {
                 }
 
             } catch (networkError: IOException) { // Catch specific network errors to allow fallback
-                lastException = Exception("Request to $finalUrl failed: ${networkError.message}", networkError)
+                lastException = if (networkError.message?.contains("getaddrinfo failed") == true || networkError.message?.contains("EAI_NODATA") == true) {
+                    Exception("The server address could not be found. Please ensure it is correct.", networkError)
+                } else {
+                    Exception("A network error occurred while trying to connect to $finalUrl. Please check your connection.", networkError)
+                }
                 // Continue to the next URL in the list (http)
             } catch (e: Exception) { // Catch any other unexpected errors during the request
-                lastException = e
+                lastException = Exception("An unexpected error occurred: ${e.message}", e)
                 // For other errors, don't try the next URL, just fail.
                 break
             }

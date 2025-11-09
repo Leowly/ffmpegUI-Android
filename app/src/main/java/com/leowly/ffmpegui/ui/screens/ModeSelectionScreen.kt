@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.leowly.ffmpegui.R
+import com.leowly.ffmpegui.data.UserPreferencesRepository
 import com.leowly.ffmpegui.http.HttpClient
 import com.leowly.ffmpegui.http.TokenRequest
 import com.leowly.ffmpegui.http.UserCreateRequest
@@ -42,7 +43,10 @@ import com.leowly.ffmpegui.ui.theme.FfmpegUITheme
 import kotlinx.coroutines.launch
 
 @Composable
-fun ModeSelectionScreen() {
+fun ModeSelectionScreen(
+    userPreferencesRepository: UserPreferencesRepository,
+    onLoginSuccess: (String) -> Unit
+) {
     var mode by remember { mutableStateOf("local") }
     var serverAddress by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
@@ -108,9 +112,9 @@ fun ModeSelectionScreen() {
 
             Button(
                 onClick = {
-                    when (mode) {
-                        "cloud" -> {
-                            coroutineScope.launch {
+                    coroutineScope.launch {
+                        when (mode) {
+                            "cloud" -> {
                                 if (serverAddress.isBlank()) {
                                     Toast.makeText(context, "Server address cannot be empty.", Toast.LENGTH_SHORT).show()
                                     return@launch
@@ -146,7 +150,6 @@ fun ModeSelectionScreen() {
                                     val result = HttpClient.register(serverAddress, request)
                                     result.onSuccess { user ->
                                         Toast.makeText(context, "Successfully registered user: ${user.username}", Toast.LENGTH_LONG).show()
-                                        // Switch back to login mode after successful registration
                                         isRegister = false
                                     }.onFailure { exception ->
                                         val errorMessage = exception.message ?: "An unknown registration error occurred."
@@ -154,18 +157,23 @@ fun ModeSelectionScreen() {
                                     }
                                 } else {
                                     val result = HttpClient.login(serverAddress, TokenRequest(username, password))
-                                    result.onSuccess { apiResponse ->
-                                        Toast.makeText(context, apiResponse.message, Toast.LENGTH_LONG).show()
+                                    result.onSuccess { 
+                                        // 1. Save preferences
+                                        userPreferencesRepository.saveCloudPreferences(serverAddress, username, password)
+                                        // 2. Navigate
+                                        onLoginSuccess(serverAddress)
                                     }.onFailure { exception ->
                                         val errorMessage = exception.message ?: "An unknown error occurred. Please check the server address and your connection."
                                         Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                                     }
                                 }
                             }
-                        }
-                        "local" -> {
-                            // TODO: Handle local mode
-                            Toast.makeText(context, "Continuing in local mode", Toast.LENGTH_SHORT).show()
+                            "local" -> {
+                                // 1. Save preference
+                                userPreferencesRepository.saveLocalMode()
+                                // 2. Navigate
+                                onLoginSuccess("Local Mode")
+                            }
                         }
                     }
                 },
@@ -216,7 +224,10 @@ fun ModeCard(selected: Boolean, onClick: () -> Unit, label: String) {
 @Composable
 fun ModeSelectionScreenPreview() {
     FfmpegUITheme {
-        ModeSelectionScreen()
+        ModeSelectionScreen(
+            userPreferencesRepository = UserPreferencesRepository(LocalContext.current),
+            onLoginSuccess = {}
+        )
     }
 }
 
@@ -224,6 +235,9 @@ fun ModeSelectionScreenPreview() {
 @Composable
 fun ModeSelectionScreenDarkPreview() {
     FfmpegUITheme {
-        ModeSelectionScreen()
+        ModeSelectionScreen(
+            userPreferencesRepository = UserPreferencesRepository(LocalContext.current),
+            onLoginSuccess = {}
+        )
     }
 }
