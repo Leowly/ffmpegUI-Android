@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.leowly.ffmpegui.R
 import com.leowly.ffmpegui.http.HttpClient
 import com.leowly.ffmpegui.http.TokenRequest
+import com.leowly.ffmpegui.http.UserCreateRequest
 import com.leowly.ffmpegui.ui.components.ServerForm
 import com.leowly.ffmpegui.ui.theme.FfmpegUITheme
 import kotlinx.coroutines.launch
@@ -110,9 +111,47 @@ fun ModeSelectionScreen() {
                     when (mode) {
                         "cloud" -> {
                             coroutineScope.launch {
+                                if (serverAddress.isBlank()) {
+                                    Toast.makeText(context, "Server address cannot be empty.", Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
+                                if (username.isBlank() || password.isBlank()) {
+                                    Toast.makeText(context, "Username and password cannot be empty.", Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
+
                                 if (isRegister) {
-                                    // TODO: Implement registration
-                                    Toast.makeText(context, "Registration not implemented", Toast.LENGTH_SHORT).show()
+                                    if (password != confirmPassword) {
+                                        Toast.makeText(context, "Passwords do not match.", Toast.LENGTH_SHORT).show()
+                                        return@launch
+                                    }
+                                    if (password.length !in 8..72) {
+                                        Toast.makeText(context, "Password must be between 8 and 72 characters.", Toast.LENGTH_SHORT).show()
+                                        return@launch
+                                    }
+                                    if (!password.any { it.isLowerCase() }) {
+                                        Toast.makeText(context, "密码必须包含至少一个小写字母", Toast.LENGTH_SHORT).show()
+                                        return@launch
+                                    }
+                                    if (!password.any { it.isUpperCase() }) {
+                                        Toast.makeText(context, "密码必须包含至少一个大写字母", Toast.LENGTH_SHORT).show()
+                                        return@launch
+                                    }
+                                    if (!password.any { it.isDigit() }) {
+                                        Toast.makeText(context, "密码必须包含至少一个数字", Toast.LENGTH_SHORT).show()
+                                        return@launch
+                                    }
+
+                                    val request = UserCreateRequest(username, password)
+                                    val result = HttpClient.register(serverAddress, request)
+                                    result.onSuccess { user ->
+                                        Toast.makeText(context, "Successfully registered user: ${user.username}", Toast.LENGTH_LONG).show()
+                                        // Switch back to login mode after successful registration
+                                        isRegister = false
+                                    }.onFailure { exception ->
+                                        val errorMessage = exception.message ?: "An unknown registration error occurred."
+                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                    }
                                 } else {
                                     val result = HttpClient.login(serverAddress, TokenRequest(username, password))
                                     result.onSuccess { apiResponse ->

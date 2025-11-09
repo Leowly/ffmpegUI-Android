@@ -1,12 +1,19 @@
 package com.leowly.ffmpegui.http
 
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpRedirect
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.forms.submitForm
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import java.io.IOException
@@ -22,7 +29,56 @@ object HttpClient {
         install(ContentNegotiation) {
             json(json)
         }
+        install(HttpRedirect)
     }
+
+    suspend fun register(serverAddress: String, userCreateRequest: UserCreateRequest): Result<User> {
+        if (serverAddress.isBlank()) {
+            return Result.failure(IllegalArgumentException("Server address cannot be empty."))
+        }
+
+        val trimmedAddress = serverAddress.trim().removeSuffix("/")
+
+        val urlsToTry = if (trimmedAddress.startsWith("http://") || trimmedAddress.startsWith("https://")) {
+            listOf(trimmedAddress)
+        } else {
+            listOf("https://$trimmedAddress", "http://$trimmedAddress")
+        }
+
+        var lastException: Exception? = null
+
+        for (baseUrl in urlsToTry) {
+            val finalUrl = "$baseUrl${ApiRoutes.USERS}"
+            try {
+                val response: HttpResponse = client.post(finalUrl) {
+                    contentType(ContentType.Application.Json)
+                    setBody(userCreateRequest)
+                }
+
+                return when (response.status) {
+                    HttpStatusCode.OK -> {
+                        Result.success(response.body<User>())
+                    }
+                    HttpStatusCode.BadRequest -> {
+                        val errorDetail = response.body<RegistrationErrorDetail>()
+                        Result.failure(Exception(errorDetail.detail))
+                    }
+                    else -> {
+                        Result.failure(Exception("Registration failed with status: ${response.status.value}"))
+                    }
+                }
+
+            } catch (networkError: IOException) {
+                lastException = Exception("Request to $finalUrl failed: ${networkError.message}", networkError)
+                // Continue to the next URL
+            } catch (e: Exception) {
+                lastException = e
+                break // Break on other errors
+            }
+        }
+        return Result.failure(lastException ?: Exception("Unknown error occurred during registration."))
+    }
+
 
     suspend fun login(serverAddress: String, tokenRequest: TokenRequest): Result<APIResponse<Token>> {
         if (serverAddress.isBlank()) {
@@ -41,7 +97,7 @@ object HttpClient {
         var lastException: Exception? = null
 
         for (baseUrl in urlsToTry) {
-            val finalUrl = "$baseUrl/token"
+            val finalUrl = "$baseUrl${ApiRoutes.TOKEN}"
             try {
                 // Attempt the request
                 val response: HttpResponse = client.submitForm(

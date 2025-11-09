@@ -25,3 +25,23 @@ data class Token(
     @SerialName("token_type")
     val tokenType: String
 )
+
+// Request for user creation
+@Serializable
+data class UserCreateRequest(
+    val username: String,
+    val password: String
+)
+
+// Response for successful user creation
+@Serializable
+data class User(
+    val id: Int,
+    val username: String
+)
+
+// Specific error response for user registration
+@Serializable
+data class RegistrationErrorDetail(
+    val detail: String
+)
