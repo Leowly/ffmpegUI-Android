@@ -32,6 +32,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.leowly.ffmpegui.data.UserPreferences
 import com.leowly.ffmpegui.data.UserPreferencesRepository
+import com.leowly.ffmpegui.ui.screens.AddServerScreen
 import com.leowly.ffmpegui.ui.screens.FileDetailsScreen
 import com.leowly.ffmpegui.ui.screens.FileListScreen
 import com.leowly.ffmpegui.ui.screens.FileProcessingScreen
@@ -43,15 +44,10 @@ import com.leowly.ffmpegui.ui.screens.SettingsScreen
 fun AppNavigation() {
     val context = LocalContext.current
     val userPreferencesRepository = remember { UserPreferencesRepository(context) }
-    // A standard Flow must have an initial value for collectAsState.
-    // `null` is used to represent the initial loading state before the first value is emitted.
     val userPreferences by userPreferencesRepository.userPreferencesFlow.collectAsState(initial = null)
 
-    // Copy the delegated property to a local variable to enable safe smart casting.
     val currentPreferences = userPreferences
 
-    // This check is crucial for handling the loading state.
-    // It is only true while waiting for the first value from DataStore.
     if (currentPreferences == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -59,7 +55,6 @@ fun AppNavigation() {
         return
     }
 
-    // After the check, currentPreferences is smart-cast to a non-null type.
     val startDestination = determineStartDestination(currentPreferences)
     val rootNavController = rememberNavController()
 
@@ -81,14 +76,14 @@ fun AppNavigation() {
 }
 
 private fun determineStartDestination(prefs: UserPreferences): String {
-    // If mode is null, it means the user has not made a selection yet.
     if (prefs.mode == null) {
         return "selection"
     }
 
-    // If a mode is set (either "local" or "cloud" with a server address), go to the main screen.
     val hasLocalMode = prefs.mode == "local"
-    val hasCloudMode = prefs.mode == "cloud" && prefs.serverAddress.isNotBlank()
+    val activeServer = prefs.servers.find { it.id == prefs.activeServerId }
+    val hasCloudMode = prefs.mode == "cloud" && activeServer != null && activeServer.accessToken.isNotBlank()
+
     return if (hasLocalMode || hasCloudMode) "main" else "selection"
 }
 
@@ -153,7 +148,7 @@ private fun AppBottomBar(navController: NavHostController) {
 private fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(
         navController = navController,
-        startDestination = BottomNavItem.FileProcessing.route,
+        startDestination = BottomNavItem.FileList.route, // Changed to FileList
         modifier = modifier
     ) {
         composable(BottomNavItem.FileList.route) {
@@ -166,7 +161,10 @@ private fun AppNavHost(navController: NavHostController, modifier: Modifier = Mo
             FileProcessingScreen()
         }
         composable(BottomNavItem.Settings.route) {
-            SettingsScreen()
+            SettingsScreen(navController = navController)
+        }
+        composable("add_server") {
+            AddServerScreen(navController = navController)
         }
     }
 }

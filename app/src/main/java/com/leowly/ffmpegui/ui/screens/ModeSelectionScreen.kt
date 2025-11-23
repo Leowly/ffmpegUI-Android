@@ -157,11 +157,22 @@ fun ModeSelectionScreen(
                                     }
                                 } else {
                                     val result = HttpClient.login(serverAddress, TokenRequest(username, password))
-                                    result.onSuccess { 
-                                        // 1. Save preferences
-                                        userPreferencesRepository.saveCloudPreferences(serverAddress, username, password)
-                                        // 2. Navigate
-                                        onLoginSuccess(serverAddress)
+                                    result.onSuccess { response ->
+                                        val token = response.data?.accessToken
+                                        if (response.success && token != null) {
+                                            // Atomically save all login data in one transaction
+                                            userPreferencesRepository.saveCloudLogin(
+                                                serverAddress = serverAddress,
+                                                username = username,
+                                                password = password,
+                                                accessToken = token
+                                            )
+                                            // Navigate after the data is securely saved
+                                            onLoginSuccess(serverAddress)
+                                        } else {
+                                            val errorMessage = response.message
+                                            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                        }
                                     }.onFailure { exception ->
                                         val errorMessage = exception.message ?: "An unknown error occurred. Please check the server address and your connection."
                                         Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()

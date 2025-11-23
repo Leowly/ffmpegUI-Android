@@ -7,6 +7,10 @@
       <w>endlocal</w>
       <w>errorlevel</w>
       <w>fmpeg</w>
+      <w>fprobe</w>
+      <w>getaddrinfo</w>
+      <w>libx</w>
+      <w>nodata</w>
       <w>setlocal</w>
       <w>spdx</w>
     </words>

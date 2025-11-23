@@ -4,13 +4,22 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpRedirect
+import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.providers.BearerTokens
+import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.delete
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitForm
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.contentType
@@ -25,6 +34,20 @@ object HttpClient {
         ignoreUnknownKeys = true
     }
 
+    // Separate client for authenticated requests
+    private fun getAuthenticatedClient(token: String) = HttpClient(CIO) {
+        install(ContentNegotiation) {
+            json(json)
+        }
+        install(Auth) {
+            bearer {
+                loadTokens {
+                    BearerTokens(token, "")
+                }
+            }
+        }
+    }
+
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(json)
@@ -32,6 +55,63 @@ object HttpClient {
         install(HttpRedirect)
     }
 
+    private fun resolveBaseUrl(serverAddress: String): String {
+        val trimmedAddress = serverAddress.trim().removeSuffix("/")
+        return if (trimmedAddress.startsWith("http://") || trimmedAddress.startsWith("https://")) {
+            trimmedAddress
+        } else {
+            // Default to http for local development as per documentation recommendation
+            "http://$trimmedAddress"
+        }
+    }
+
+    // --- File Management ---
+
+    suspend fun getFiles(serverAddress: String, token: String): Result<List<FileItem>> {
+        return try {
+            val baseUrl = resolveBaseUrl(serverAddress)
+            val response: List<FileItem> = getAuthenticatedClient(token).get("$baseUrl${ApiRoutes.LIST_FILES}").body()
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun uploadFile(serverAddress: String, token: String, fileName: String, fileBytes: ByteArray): Result<FileItem> {
+        return try {
+            val baseUrl = resolveBaseUrl(serverAddress)
+            val response: FileItem = getAuthenticatedClient(token).post("$baseUrl${ApiRoutes.UPLOAD_FILE}") {
+                setBody(MultiPartFormDataContent(
+                    formData {
+                        append("file", fileBytes, Headers.build {
+                            append(HttpHeaders.ContentType, "application/octet-stream")
+                            append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                        })
+                    }
+                ))
+            }.body()
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteFile(serverAddress: String, token: String, fileId: String): Result<DeleteResponse> {
+        return try {
+            val baseUrl = resolveBaseUrl(serverAddress)
+            val response: DeleteResponse = getAuthenticatedClient(token).delete("$baseUrl${ApiRoutes.DELETE_FILE}") {
+                url {
+                    parameters.append("filename", fileId)
+                }
+            }.body()
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
+    // --- Auth ---
     suspend fun register(serverAddress: String, userCreateRequest: UserCreateRequest): Result<User> {
         if (serverAddress.isBlank()) {
             return Result.failure(IllegalArgumentException("Server address cannot be empty."))

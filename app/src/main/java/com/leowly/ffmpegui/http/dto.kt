@@ -45,3 +45,30 @@ data class User(
 data class RegistrationErrorDetail(
     val detail: String
 )
+
+// --- File Management DTOs ---
+
+@Serializable
+data class FileItem(
+    val id: String,
+    val name: String,
+    val size: Long,
+    val status: String,
+    val uid: String,
+    val response: UploadResponseData? = null
+)
+
+@Serializable
+data class UploadResponseData(
+    @SerialName("file_id")
+    val fileId: String,
+    @SerialName("original_name")
+    val originalName: String,
+    @SerialName("temp_path")
+    val tempPath: String
+)
+
+@Serializable
+data class DeleteResponse(
+    val message: String
+)
